@@ -7,6 +7,8 @@ import java.nio.file.Files;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
+import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -158,6 +160,46 @@ public class JetPtechwordcontroller {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=excel.pdf")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(pdfBytes);
+    }
+    
+    
+    
+    
+    
+    //pdf passoword
+   
+    @PostMapping(value = "/protect", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<byte[]> protectPdf(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("password") String password) throws Exception {
+
+        if (file.isEmpty() || password.isEmpty()) {
+            return ResponseEntity.badRequest().body("File or password missing".getBytes());
+        }
+
+        PDDocument document = PDDocument.load(file.getInputStream());
+
+        AccessPermission ap = new AccessPermission();
+        ap.setCanPrint(true);
+        ap.setCanModify(false);
+        ap.setCanExtractContent(false);
+
+        StandardProtectionPolicy policy = new StandardProtectionPolicy(password, password, ap);
+        policy.setEncryptionKeyLength(128);
+        policy.setPreferAES(true);
+
+        document.protect(policy);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        document.save(out);
+        document.close();
+
+        String protectedName = file.getOriginalFilename().replace(".pdf", "_protected.pdf");
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + protectedName)
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(out.toByteArray());
     }
 
 
